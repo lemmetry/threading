@@ -1,37 +1,47 @@
 import string
 import urllib.request
 from bs4 import BeautifulSoup
+import time
 import queue
 import threading
-
 
 def getAlphabetUrls():
     pattern = 'http://www.nhl.com/ice/playersearch.htm?letter='
     return [(pattern + letter + '&pg=1') for letter in [char for char in string.ascii_uppercase]]
 
+alphabet_urls = getAlphabetUrls()
+alphabet_urls_queue = queue.Queue()
+
 
 class ThreadAlphabetUrls(threading.Thread):
-    def __init__(self, alphabet_queue):
+    def __init__(self, url_queue):
+        self.url_queue = url_queue
         threading.Thread.__init__(self)
-        self.alphabet_queue = alphabet_queue
 
     def run(self):
         while True:
-            url = self.alphabet_queue.get()
-            print(url)
-            self.alphabet_queue.task_done()
+            url = self.url_queue.get()
+            self.getSameInitialPlayersUrls(url)
+            self.url_queue.task_done()
+            
+
+    def getSameInitialPlayersUrls(self, url):
+        # will port function here
+        print(url)
 
 
-alphabet_urls = getAlphabetUrls()
+for url in alphabet_urls:
+    alphabet_urls_queue.put(url)
 
-alphabet_queue = queue.Queue()
 
-for _ in range(len(alphabet_urls)):
-    t1 = ThreadAlphabetUrls(alphabet_queue)
-    t1.setDaemon(True)
-    t1.start()
+threads = []
+while alphabet_urls_queue.qsize() > 0:
+    print(alphabet_urls_queue.qsize())
+    for _ in range(5):
+        t = ThreadAlphabetUrls(alphabet_urls_queue)
+        t.start()
+        threads.append(t)
+    [t.join() for t in threads]
 
-for alphabet_url in alphabet_urls:
-    alphabet_queue.put(alphabet_url)
-
-alphabet_queue.join()
+# never gets here
+print(t.isAlive())
