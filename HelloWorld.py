@@ -26,14 +26,19 @@ def main():
 
     [alphabet_urls_queue.put(url) for url in alphabet_urls]
 
-    while alphabet_urls_queue.qsize() > 0:
-        size = alphabet_urls_queue.qsize()
-        if size > 5:
-            threads = [MyThread(alphabet_urls_queue) for _ in range(5)]
-        else:
-            threads = [MyThread(alphabet_urls_queue) for _ in range(size)]
-        [t.start() for t in threads]
-        [t.join() for t in threads]
+
+    threads = [MyThread(alphabet_urls_queue) for _ in range(5)]
+    [t.start() for t in threads]
+    i = 5
+    print([t.getName() for t in threads], threading.active_count())
+    while i < 26:
+        num_active_threads = threading.active_count()
+        if num_active_threads < 5:
+            threads = [MyThread(alphabet_urls_queue) for _ in range(5 - num_active_threads)]
+            [t.start() for t in threads]
+            i += (5 - num_active_threads)
+        print([t.getName() for t in threads], threading.active_count())
+
 
     print('DONE')
 
