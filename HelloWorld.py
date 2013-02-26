@@ -1,7 +1,4 @@
 import string
-import urllib.request
-from bs4 import BeautifulSoup
-import time
 import queue
 import threading
 
@@ -9,39 +6,35 @@ def getAlphabetUrls():
     pattern = 'http://www.nhl.com/ice/playersearch.htm?letter='
     return [(pattern + letter + '&pg=1') for letter in [char for char in string.ascii_uppercase]]
 
-alphabet_urls = getAlphabetUrls()
-alphabet_urls_queue = queue.Queue()
 
-
-class ThreadAlphabetUrls(threading.Thread):
-    def __init__(self, url_queue):
-        self.url_queue = url_queue
+class MyThread(threading.Thread):
+    def __init__(self, alphabet_urls_queue):
+        self.alphabet_urls_queue = alphabet_urls_queue
         threading.Thread.__init__(self)
 
     def run(self):
-        while True:
-            url = self.url_queue.get()
-            self.getSameInitialPlayersUrls(url)
-            self.url_queue.task_done()
-            
+        alphabet_url = self.alphabet_urls_queue.get()
+        self.getSameInitialPlayersUrls(alphabet_url)
 
-    def getSameInitialPlayersUrls(self, url):
-        # will port function here
-        print(url)
+    def getSameInitialPlayersUrls(self, alphabet_url):
+        print('will work on %s here' %(alphabet_url))
 
 
-for url in alphabet_urls:
-    alphabet_urls_queue.put(url)
+def main():
+    alphabet_urls = getAlphabetUrls()
+    alphabet_urls_queue = queue.Queue()
 
+    [alphabet_urls_queue.put(url) for url in alphabet_urls]
 
-threads = []
-while alphabet_urls_queue.qsize() > 0:
-    print(alphabet_urls_queue.qsize())
-    for _ in range(5):
-        t = ThreadAlphabetUrls(alphabet_urls_queue)
-        t.start()
-        threads.append(t)
-    [t.join() for t in threads]
+    while alphabet_urls_queue.qsize() > 0:
+        size = alphabet_urls_queue.qsize()
+        if size > 5:
+            threads = [MyThread(alphabet_urls_queue) for _ in range(5)]
+        else:
+            threads = [MyThread(alphabet_urls_queue) for _ in range(size)]
+        [t.start() for t in threads]
+        [t.join() for t in threads]
 
-# never gets here
-print(t.isAlive())
+    print('DONE')
+
+main()
