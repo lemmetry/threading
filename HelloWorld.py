@@ -13,8 +13,11 @@ class MyThread(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
-        alphabet_url = self.alphabet_urls_queue.get()
-        self.getSameInitialPlayersUrls(alphabet_url)
+        while not self.alphabet_urls_queue.empty():
+            alphabet_url = self.alphabet_urls_queue.get()
+            self.getSameInitialPlayersUrls(alphabet_url)
+            self.alphabet_urls_queue.task_done()
+
 
     def getSameInitialPlayersUrls(self, alphabet_url):
         print('will work on %s here' %(alphabet_url))
@@ -29,15 +32,7 @@ def main():
 
     threads = [MyThread(alphabet_urls_queue) for _ in range(5)]
     [t.start() for t in threads]
-    i = 5
-    print([t.getName() for t in threads], threading.active_count())
-    while i < 26:
-        num_active_threads = threading.active_count()
-        if num_active_threads < 5:
-            threads = [MyThread(alphabet_urls_queue) for _ in range(5 - num_active_threads)]
-            [t.start() for t in threads]
-            i += (5 - num_active_threads)
-        print([t.getName() for t in threads], threading.active_count())
+    [t.join() for t in threads]
 
 
     print('DONE')
