@@ -8,11 +8,13 @@ from bs4 import BeautifulSoup
 
 def getABCUrls():
     pattern = 'http://www.nhl.com/ice/playersearch.htm?letter='
-    return [(pattern + letter + '&pg=1') for letter in [char for char in string.ascii_uppercase]]
+    return [(pattern + letter + '&pg=1') for letter in
+            [char for char in string.ascii_uppercase]]
 
 
-class MyThread(threading.Thread):
-    def __init__(self, abc_urls_queue, abc_queue_condition, players_queue, players_queue_condition):
+class ABCThread(threading.Thread):
+    def __init__(self, abc_urls_queue, abc_queue_condition, players_queue,
+                 players_queue_condition):
         threading.Thread.__init__(self)
         self.abc_urls_queue = abc_urls_queue
         self.abc_queue_condition = abc_queue_condition
@@ -22,16 +24,15 @@ class MyThread(threading.Thread):
     def run(self):
         while True:
             self.abc_queue_condition.acquire()
-            if not self.abc_urls_queue.empty():
-                abc_url = self.abc_urls_queue.get()
-                self.abc_urls_queue.task_done()
+            try:
+                if not self.abc_urls_queue.empty():
+                    abc_url = self.abc_urls_queue.get()
+                    self.abc_urls_queue.task_done()
+                else:
+                    break
+            finally:
                 self.abc_queue_condition.notify_all()
                 self.abc_queue_condition.release()
-            else:
-                # print('empty')
-                self.abc_queue_condition.notify_all()
-                self.abc_queue_condition.release()
-                break
             sameInitialPlayersUrls = self.getSameInitialPlayersUrls(abc_url)
             print(self.getName(), abc_url, len(sameInitialPlayersUrls))
 
@@ -45,14 +46,18 @@ class MyThread(threading.Thread):
         link = urllib.request.urlopen(url)
         soup = BeautifulSoup(link.read())
 
-        if soup.find('div', {'style': 'padding: 6px; font-weight: bold;'}) is not None:
+        if soup.find('div', {
+            'style': 'padding: 6px; font-weight: bold;'}) is not None:
             return players_urls
 
         for l in soup.find_all('a'):
             candidate = l.get('href')
             candidate = str(candidate)
-            if ('http' not in candidate) and (candidate not in players_urls) and ('/ice/player.htm?id' in candidate):
-                players_urls.append('http://www.nhl.com' + candidate + '&view=splits')
+            if ('http' not in candidate) and (
+                    candidate not in players_urls) and (
+                    '/ice/player.htm?id' in candidate):
+                players_urls.append(
+                    'http://www.nhl.com' + candidate + '&view=splits')
 
         node = soup.find('div', {'class': 'resultCount'}).next
         results = node.split()
@@ -60,7 +65,8 @@ class MyThread(threading.Thread):
         result_total = int(results[2])
 
         if result_left_off < result_total:
-            next_page = url[:url.rfind('=') + 1] + str(result_left_off // 50 + 1)
+            next_page = url[:url.rfind('=') + 1] + str(
+                result_left_off // 50 + 1)
             return players_urls + self.getSameInitialPlayersUrls(next_page)
         elif result_left_off == result_total:
             return players_urls
@@ -79,11 +85,14 @@ def main():
     players_queue = queue.Queue()
     players_queue_condition = threading.Condition(threading.RLock())
 
-    threads = [MyThread(abc_urls_queue, abc_queue_condition, players_queue, players_queue_condition) for _ in range(5)]
-    [t.start() for t in threads]
-    [t.join() for t in threads]
+    abc_threads = [
+        ABCThread(abc_urls_queue, abc_queue_condition, players_queue,
+                  players_queue_condition) for _ in range(5)]
+    [t.start() for t in abc_threads]
+    [t.join() for t in abc_threads]
 
     print(players_queue.qsize())
     print('main finished')
+
 
 main()
